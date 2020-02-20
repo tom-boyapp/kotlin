@@ -59,8 +59,22 @@ import java.util.concurrent.ConcurrentMap;
 public class KotlinJavaPsiFacade {
     private volatile KotlinPsiElementFinderWrapper[] elementFinders;
 
+    private static class PsiPackageWrapper {
+        final PsiPackage aPackage;
+
+        public PsiPackageWrapper(PsiPackage aPackage) {
+            this.aPackage = aPackage;
+        }
+
+        static PsiPackageWrapper wrap(PsiPackage aPackage) {
+            return aPackage == null ? NULL_PSI_PACKAGE : new PsiPackageWrapper(aPackage);
+        }
+    }
+
+    private static final PsiPackageWrapper NULL_PSI_PACKAGE = new PsiPackageWrapper(null);
+
     private static class PackageCache {
-        final ConcurrentMap<Pair<String, GlobalSearchScope>, PsiPackage> packageInScopeCache = ContainerUtil.newConcurrentMap();
+        final ConcurrentMap<Pair<String, GlobalSearchScope>, PsiPackageWrapper> packageInScopeCache = ContainerUtil.newConcurrentMap();
         final ConcurrentMap<String, Boolean> hasPackageInAllScopeCache = ContainerUtil.newConcurrentMap();
     }
 
@@ -105,7 +119,7 @@ public class KotlinJavaPsiFacade {
     }
 
     public JavaClass findClass(@NotNull JavaClassFinder.Request request, @NotNull GlobalSearchScope scope) {
-        ProgressIndicatorAndCompilationCanceledStatus.checkCanceled(); // We hope this method is being called often enough to cancel daemon processes smoothly
+        ProgressIndicatorAndCompilationCanceledStatus.checkCanceled();
 
         ClassId classId = request.getClassId();
         String qualifiedName = classId.asSingleFqName().asString();
@@ -215,7 +229,7 @@ public class KotlinJavaPsiFacade {
 
         elementFinders.addAll(CollectionsKt.map(nonKotlinFinders, KotlinJavaPsiFacade::wrap));
 
-        return elementFinders.toArray(new KotlinPsiElementFinderWrapper[elementFinders.size()]);
+        return elementFinders.toArray(new KotlinPsiElementFinderWrapper[0]);
     }
 
     @NotNull
@@ -236,9 +250,9 @@ public class KotlinJavaPsiFacade {
         }
 
         Pair<String, GlobalSearchScope> key = new Pair<>(qualifiedName, searchScope);
-        PsiPackage aPackage = cache.packageInScopeCache.get(key);
-        if (aPackage != null) {
-            return aPackage;
+        PsiPackageWrapper aPackageWrapper = cache.packageInScopeCache.get(key);
+        if (aPackageWrapper != null) {
+            return aPackageWrapper.aPackage;
         }
 
         KotlinPsiElementFinderWrapper[] finders = filteredFinders();
@@ -250,27 +264,34 @@ public class KotlinJavaPsiFacade {
             // Package was found in AllScope with some of finders but is absent in packageCache for current scope.
             // We check only finders that depend on scope.
             for (KotlinPsiElementFinderWrapper finder : finders) {
+                ProgressIndicatorAndCompilationCanceledStatus.checkCanceled();
                 if (!finder.isSameResultForAnyScope()) {
-                    aPackage = finder.findPackage(qualifiedName, searchScope);
+                    PsiPackage aPackage = finder.findPackage(qualifiedName, searchScope);
+                    PsiPackageWrapper wrapper =
+                            ConcurrencyUtil.cacheOrGet(cache.packageInScopeCache, key, PsiPackageWrapper.wrap(aPackage));
                     if (aPackage != null) {
-                        return ConcurrencyUtil.cacheOrGet(cache.packageInScopeCache, key, aPackage);
+                        return wrapper.aPackage;
                     }
+                } else {
+                    ConcurrencyUtil.cacheOrGet(cache.packageInScopeCache, key, NULL_PSI_PACKAGE);
                 }
             }
         }
         else {
             for (KotlinPsiElementFinderWrapper finder : finders) {
-                aPackage = finder.findPackage(qualifiedName, searchScope);
-
+                ProgressIndicatorAndCompilationCanceledStatus.checkCanceled();
+                PsiPackage aPackage = finder.findPackage(qualifiedName, searchScope);
+                PsiPackageWrapper wrapper =
+                        ConcurrencyUtil.cacheOrGet(cache.packageInScopeCache, key, PsiPackageWrapper.wrap(aPackage));
                 if (aPackage != null) {
-                    return ConcurrencyUtil.cacheOrGet(cache.packageInScopeCache, key, aPackage);
+                    return wrapper.aPackage;
                 }
             }
 
             boolean found = false;
             for (KotlinPsiElementFinderWrapper finder : finders) {
                 if (!finder.isSameResultForAnyScope()) {
-                    aPackage = finder.findPackage(qualifiedName, GlobalSearchScope.allScope(project));
+                    PsiPackage aPackage = finder.findPackage(qualifiedName, GlobalSearchScope.allScope(project));
                     if (aPackage != null) {
                         found = true;
                         break;
@@ -290,7 +311,7 @@ public class KotlinJavaPsiFacade {
         KotlinPsiElementFinderWrapper[] finders = finders();
         if (dumbService.isDumb()) {
             List<KotlinPsiElementFinderWrapper> list = dumbService.filterByDumbAwareness(Arrays.asList(finders));
-            finders = list.toArray(new KotlinPsiElementFinderWrapper[list.size()]);
+            finders = list.toArray(new KotlinPsiElementFinderWrapper[0]);
         }
         return finders;
     }
