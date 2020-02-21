@@ -7,7 +7,6 @@ buildscript {
     kotlinBootstrapFrom(BootstrapOption.BintrayBootstrap(kotlinBuildProperties.kotlinBootstrapVersion!!, cacheRedirectorEnabled))
 
     repositories {
-        mavenLocal()
         if (cacheRedirectorEnabled) {
             maven("https://cache-redirector.jetbrains.com/jcenter.bintray.com")
             maven("https://cache-redirector.jetbrains.com/kotlin.bintray.com/kotlin-dependencies")
@@ -80,7 +79,6 @@ extra["customDepsOrg"] = "kotlin.build"
 
 repositories {
     jcenter()
-    mavenLocal()
     maven("https://jetbrains.bintray.com/intellij-third-party-dependencies/")
     maven("https://kotlin.bintray.com/kotlin-dependencies")
     gradlePluginPortal()
