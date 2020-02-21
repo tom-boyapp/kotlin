@@ -49,7 +49,7 @@ class ResultTypeResolver(
     ): KotlinTypeMarker? {
         findResultIfThereIsEqualsConstraint(c, variableWithConstraints)?.let { return it }
 
-        val subType = c.findSubType(variableWithConstraints)
+        val subType = c.findSubType(variableWithConstraints) // .
         val superType = c.findSuperType(variableWithConstraints)
         return if (direction == ResolveDirection.TO_SUBTYPE || direction == ResolveDirection.UNKNOWN) {
             c.resultType(subType, superType, variableWithConstraints)

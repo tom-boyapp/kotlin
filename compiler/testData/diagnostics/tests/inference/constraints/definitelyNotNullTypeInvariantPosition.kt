@@ -1,24 +1,17 @@
-// !DIAGNOSTICS: -UNUSED_PARAMETER -UNUSED_EXPRESSION
+// FILE: Bar.java
+class Bar {
+    static void foo(String x) {
 
-class Inv<T>(val x: T?)
+    }
+}
 
-fun <K> create(y: K) = Inv(y)
-fun <K> createPrivate(y: K) = Inv(y)
+// FILE: main.kt
+class A {
+    var x: String? = null
+}
 
-fun takeInvInt(i: Inv<Int>) {}
-
-fun <S> test(i: Int, s: S) {
-    val a = Inv(s)
-
-    <!DEBUG_INFO_EXPRESSION_TYPE("Inv<S>")!>a<!>
-
-    val b = create(i)
-
-    <!DEBUG_INFO_EXPRESSION_TYPE("Inv<kotlin.Int>")!>b<!>
-
-    val c = createPrivate(i)
-
-    <!DEBUG_INFO_EXPRESSION_TYPE("Inv<kotlin.Int>")!>c<!>
-
-    takeInvInt(create(i))
+fun main() {
+    val y = A()
+    y.x = ""
+    Bar.foo(y.x)
 }
