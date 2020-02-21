@@ -217,40 +217,56 @@ abstract class KotlinIrLinker(
 
             private fun referenceDeserializedSymbol(
                 symbolKind: BinarySymbolData.SymbolKind,
-                idSig: IdSignature,
+                idSignature: IdSignature,
                 descriptor: DeclarationDescriptor?
             ) =
                 symbolTable.run {
                     when (symbolKind) {
-                        BinarySymbolData.SymbolKind.ANONYMOUS_INIT_SYMBOL ->
-                            IrAnonymousInitializerSymbolImpl(WrappedClassDescriptor()).also { require(idSig.isLocal) }
-                        BinarySymbolData.SymbolKind.CLASS_SYMBOL ->  // TODO: FunctionInterfaces
-                            referenceClassFromLinker(descriptor as ClassDescriptor? ?: WrappedClassDescriptor(), idSig)
-                        BinarySymbolData.SymbolKind.CONSTRUCTOR_SYMBOL ->
-                            referenceConstructorFromLinker(WrappedClassConstructorDescriptor(), idSig)
-                        BinarySymbolData.SymbolKind.TYPE_PARAMETER_SYMBOL ->
-                            referenceTypeParameterFromLinker(WrappedTypeParameterDescriptor(), idSig)
-                        BinarySymbolData
-                            .SymbolKind.ENUM_ENTRY_SYMBOL -> referenceEnumEntryFromLinker(WrappedEnumEntryDescriptor(), idSig)
-                        BinarySymbolData
-                            .SymbolKind.STANDALONE_FIELD_SYMBOL -> referenceFieldFromLinker(WrappedFieldDescriptor(), idSig)
-                        BinarySymbolData
-                            .SymbolKind.FIELD_SYMBOL -> referenceFieldFromLinker(WrappedPropertyDescriptor(), idSig)
-                        BinarySymbolData.SymbolKind.FUNCTION_SYMBOL ->  //TODO: FunctionInterfaces
-                            referenceSimpleFunctionFromLinker(descriptor as FunctionDescriptor? ?: WrappedSimpleFunctionDescriptor(), idSig)
-                        BinarySymbolData
-                            .SymbolKind.TYPEALIAS_SYMBOL -> referenceTypeAliasFromLinker(WrappedTypeAliasDescriptor(), idSig)
-                        BinarySymbolData
-                            .SymbolKind.PROPERTY_SYMBOL -> referencePropertyFromLinker(WrappedPropertyDescriptor(), idSig)
-                        BinarySymbolData
-                            .SymbolKind.VARIABLE_SYMBOL -> IrVariableSymbolImpl(WrappedVariableDescriptor())
-                        BinarySymbolData
-                            .SymbolKind.VALUE_PARAMETER_SYMBOL -> IrValueParameterSymbolImpl(WrappedValueParameterDescriptor())
-                        BinarySymbolData.SymbolKind.RECEIVER_PARAMETER_SYMBOL ->
-                            IrValueParameterSymbolImpl(WrappedReceiverParameterDescriptor())
-                        BinarySymbolData.SymbolKind.LOCAL_DELEGATED_PROPERTY_SYMBOL ->
-                            IrLocalDelegatedPropertySymbolImpl(WrappedVariableDescriptorWithAccessor())
-                        else -> TODO("Unexpected classifier symbol kind: $symbolKind")
+                        BinarySymbolData.SymbolKind.ANONYMOUS_INIT_SYMBOL -> IrAnonymousInitializerSymbolImpl(
+                            descriptor as? ClassDescriptor ?: WrappedClassDescriptor()
+                        ).also { require(idSignature.isLocal) }
+                        // TODO: FunctionInterfaces
+                        BinarySymbolData.SymbolKind.CLASS_SYMBOL -> referenceClassFromLinker(
+                            descriptor as? ClassDescriptor ?: WrappedClassDescriptor(), idSignature
+                        )
+                        BinarySymbolData.SymbolKind.CONSTRUCTOR_SYMBOL -> referenceConstructorFromLinker(
+                            descriptor as? ClassConstructorDescriptor ?: WrappedClassConstructorDescriptor(), idSignature
+                        )
+                        BinarySymbolData.SymbolKind.TYPE_PARAMETER_SYMBOL -> referenceTypeParameterFromLinker(
+                            descriptor as? TypeParameterDescriptor ?: WrappedTypeParameterDescriptor(), idSignature
+                        )
+                        BinarySymbolData.SymbolKind.ENUM_ENTRY_SYMBOL -> referenceEnumEntryFromLinker(
+                            descriptor as? ClassDescriptor ?: WrappedEnumEntryDescriptor(), idSignature
+                        )
+                        BinarySymbolData.SymbolKind.STANDALONE_FIELD_SYMBOL -> referenceFieldFromLinker(
+                            descriptor as? PropertyDescriptor ?: WrappedFieldDescriptor(), idSignature
+                        )
+                        BinarySymbolData.SymbolKind.FIELD_SYMBOL -> referenceFieldFromLinker(
+                            descriptor as? PropertyDescriptor ?: WrappedPropertyDescriptor(), idSignature
+                        )
+                        //TODO: FunctionInterfaces
+                        BinarySymbolData.SymbolKind.FUNCTION_SYMBOL -> referenceSimpleFunctionFromLinker(
+                            descriptor as? FunctionDescriptor ?: WrappedSimpleFunctionDescriptor(), idSignature
+                        )
+                        BinarySymbolData.SymbolKind.TYPEALIAS_SYMBOL -> referenceTypeAliasFromLinker(
+                            descriptor as? TypeAliasDescriptor ?: WrappedTypeAliasDescriptor(), idSignature
+                        )
+                        BinarySymbolData.SymbolKind.PROPERTY_SYMBOL -> referencePropertyFromLinker(
+                            descriptor as? PropertyDescriptor ?: WrappedPropertyDescriptor(), idSignature
+                        )
+                        BinarySymbolData.SymbolKind.VARIABLE_SYMBOL -> IrVariableSymbolImpl(
+                            descriptor as? VariableDescriptor ?: WrappedVariableDescriptor()
+                        )
+                        BinarySymbolData.SymbolKind.VALUE_PARAMETER_SYMBOL -> IrValueParameterSymbolImpl(
+                            descriptor as? ValueParameterDescriptor ?: WrappedValueParameterDescriptor()
+                        )
+                        BinarySymbolData.SymbolKind.RECEIVER_PARAMETER_SYMBOL -> IrValueParameterSymbolImpl(
+                            descriptor as? ReceiverParameterDescriptor ?: WrappedReceiverParameterDescriptor()
+                        )
+                        BinarySymbolData.SymbolKind.LOCAL_DELEGATED_PROPERTY_SYMBOL -> IrLocalDelegatedPropertySymbolImpl(
+                            descriptor as? VariableDescriptorWithAccessors ?: WrappedVariableDescriptorWithAccessor()
+                        )
+                        else -> error("Unexpected classifier symbol kind: $symbolKind")
                     }
                 }
 
