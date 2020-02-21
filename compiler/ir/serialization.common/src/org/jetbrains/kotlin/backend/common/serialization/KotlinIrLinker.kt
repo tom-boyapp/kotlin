@@ -214,17 +214,24 @@ abstract class KotlinIrLinker(
             private fun loadStringProto(index: Int): String {
                 return String(readString(moduleDescriptor, fileIndex, index))
             }
-
+            // TODO: this function allows passing descriptor for all kinds of symbols.
+            //  It is incorrect.
             private fun referenceDeserializedSymbol(
                 symbolKind: BinarySymbolData.SymbolKind,
                 idSignature: IdSignature,
                 descriptor: DeclarationDescriptor?
-            ) =
-                symbolTable.run {
+            ): IrSymbol {
+                fun checkDescriptorIsNull(symbolKind: BinarySymbolData.SymbolKind) {
+                    assert(descriptor == null) { "Symbol with kind $symbolKind should not have non-wrapped descriptor" }
+                }
+
+                return symbolTable.run {
                     when (symbolKind) {
-                        BinarySymbolData.SymbolKind.ANONYMOUS_INIT_SYMBOL -> IrAnonymousInitializerSymbolImpl(
-                            descriptor as? ClassDescriptor ?: WrappedClassDescriptor()
-                        ).also { require(idSignature.isLocal) }
+                        BinarySymbolData.SymbolKind.ANONYMOUS_INIT_SYMBOL -> {
+                            checkDescriptorIsNull(symbolKind)
+                            IrAnonymousInitializerSymbolImpl(WrappedClassDescriptor())
+                                .also { require(idSignature.isLocal) }
+                        }
                         // TODO: FunctionInterfaces
                         BinarySymbolData.SymbolKind.CLASS_SYMBOL -> referenceClassFromLinker(
                             descriptor as? ClassDescriptor ?: WrappedClassDescriptor(), idSignature
@@ -232,18 +239,21 @@ abstract class KotlinIrLinker(
                         BinarySymbolData.SymbolKind.CONSTRUCTOR_SYMBOL -> referenceConstructorFromLinker(
                             descriptor as? ClassConstructorDescriptor ?: WrappedClassConstructorDescriptor(), idSignature
                         )
-                        BinarySymbolData.SymbolKind.TYPE_PARAMETER_SYMBOL -> referenceTypeParameterFromLinker(
-                            descriptor as? TypeParameterDescriptor ?: WrappedTypeParameterDescriptor(), idSignature
-                        )
+                        BinarySymbolData.SymbolKind.TYPE_PARAMETER_SYMBOL -> {
+                            checkDescriptorIsNull(symbolKind)
+                            referenceTypeParameterFromLinker(WrappedTypeParameterDescriptor(), idSignature)
+                        }
                         BinarySymbolData.SymbolKind.ENUM_ENTRY_SYMBOL -> referenceEnumEntryFromLinker(
                             descriptor as? ClassDescriptor ?: WrappedEnumEntryDescriptor(), idSignature
                         )
-                        BinarySymbolData.SymbolKind.STANDALONE_FIELD_SYMBOL -> referenceFieldFromLinker(
-                            descriptor as? PropertyDescriptor ?: WrappedFieldDescriptor(), idSignature
-                        )
-                        BinarySymbolData.SymbolKind.FIELD_SYMBOL -> referenceFieldFromLinker(
-                            descriptor as? PropertyDescriptor ?: WrappedPropertyDescriptor(), idSignature
-                        )
+                        BinarySymbolData.SymbolKind.STANDALONE_FIELD_SYMBOL -> {
+                            checkDescriptorIsNull(symbolKind)
+                            referenceFieldFromLinker(WrappedFieldDescriptor(), idSignature)
+                        }
+                        BinarySymbolData.SymbolKind.FIELD_SYMBOL -> {
+                            checkDescriptorIsNull(symbolKind)
+                            referenceFieldFromLinker(WrappedPropertyDescriptor(), idSignature)
+                        }
                         //TODO: FunctionInterfaces
                         BinarySymbolData.SymbolKind.FUNCTION_SYMBOL -> referenceSimpleFunctionFromLinker(
                             descriptor as? FunctionDescriptor ?: WrappedSimpleFunctionDescriptor(), idSignature
@@ -254,21 +264,25 @@ abstract class KotlinIrLinker(
                         BinarySymbolData.SymbolKind.PROPERTY_SYMBOL -> referencePropertyFromLinker(
                             descriptor as? PropertyDescriptor ?: WrappedPropertyDescriptor(), idSignature
                         )
-                        BinarySymbolData.SymbolKind.VARIABLE_SYMBOL -> IrVariableSymbolImpl(
-                            descriptor as? VariableDescriptor ?: WrappedVariableDescriptor()
-                        )
-                        BinarySymbolData.SymbolKind.VALUE_PARAMETER_SYMBOL -> IrValueParameterSymbolImpl(
-                            descriptor as? ValueParameterDescriptor ?: WrappedValueParameterDescriptor()
-                        )
+                        BinarySymbolData.SymbolKind.VARIABLE_SYMBOL -> {
+                            checkDescriptorIsNull(symbolKind)
+                            IrVariableSymbolImpl(WrappedVariableDescriptor())
+                        }
+                        BinarySymbolData.SymbolKind.VALUE_PARAMETER_SYMBOL -> {
+                            checkDescriptorIsNull(symbolKind)
+                            IrValueParameterSymbolImpl(WrappedValueParameterDescriptor())
+                        }
                         BinarySymbolData.SymbolKind.RECEIVER_PARAMETER_SYMBOL -> IrValueParameterSymbolImpl(
                             descriptor as? ReceiverParameterDescriptor ?: WrappedReceiverParameterDescriptor()
                         )
-                        BinarySymbolData.SymbolKind.LOCAL_DELEGATED_PROPERTY_SYMBOL -> IrLocalDelegatedPropertySymbolImpl(
-                            descriptor as? VariableDescriptorWithAccessors ?: WrappedVariableDescriptorWithAccessor()
-                        )
+                        BinarySymbolData.SymbolKind.LOCAL_DELEGATED_PROPERTY_SYMBOL -> {
+                            checkDescriptorIsNull(symbolKind)
+                            IrLocalDelegatedPropertySymbolImpl(WrappedVariableDescriptorWithAccessor())
+                        }
                         else -> error("Unexpected classifier symbol kind: $symbolKind")
                     }
                 }
+            }
 
             private fun isGlobalIdSignature(isSignature: IdSignature): Boolean {
                 return isSignature in globalDeserializationState || isSpecialSignature(isSignature)
