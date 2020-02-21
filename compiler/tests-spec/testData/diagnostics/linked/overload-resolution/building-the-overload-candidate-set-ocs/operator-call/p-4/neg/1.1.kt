@@ -157,3 +157,71 @@ class B(var a: Int = 0) {
         operator fun invoke(value: Int) = B()
     }
 }
+
+// FILE: TestCase7.kt
+/*
+ * TESTCASE NUMBER: 7
+ * NOTE: for-loop operators
+ * UNEXPECTED BEHAVIOUR
+ * ISSUES: KT-36898
+ */
+package testPackCase7
+
+fun case7 () {
+    val iterable: Iterable = Iterable(Inv('s'))
+    for (i in iterable) {
+        println(i)
+    }
+}
+
+class Iterable(val iterator: Inv) {
+    //  operator fun iterator() : CharIterator = TODO()
+}
+
+class Inv(val c: Char) {
+    operator fun invoke(): CharIterator = object : CharIterator() {
+        private var index = 0
+
+        override fun nextChar(): Char {
+            index++; return c
+        }
+
+        override fun hasNext(): Boolean = index < 5
+    }
+}
+
+
+// FILE: TestCase8.kt
+/*
+ * TESTCASE NUMBER: 8
+ * NOTE: for-loop operators
+ * UNEXPECTED BEHAVIOUR
+ * ISSUES: KT-36898
+ */
+package testPackCase8
+
+fun case8 () {
+    val iterable: Iterable = Iterable()
+    for (i in iterable) {
+        println(i)
+    }
+}
+
+class Iterable() {
+    //  operator fun iterator() : CharIterator = TODO()
+}
+val Iterable.iterator: Inv
+    get() = Inv('c')
+
+class Inv(val c: Char) {
+    operator fun invoke(): CharIterator = object : CharIterator() {
+        private var index = 0
+
+        override fun nextChar(): Char {
+            index++; return c
+        }
+
+        override fun hasNext(): Boolean = index < 5
+    }
+}
+
