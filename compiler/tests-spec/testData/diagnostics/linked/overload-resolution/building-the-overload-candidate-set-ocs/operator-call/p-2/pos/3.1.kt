@@ -55,7 +55,7 @@ class Case() {
     }
 }
 
-// FILE: LibCase1.kt
+// FILE: LibCase3.kt
 // TESTCASE NUMBER: 3, 4
 package libPackage
 import testPackCase3.Case
@@ -105,7 +105,7 @@ class Case() {
     }
 }
 
-// FILE: LibCase1.kt
+// FILE: LibCase5.kt
 // TESTCASE NUMBER: 5, 6
 package libPackage
 
@@ -147,7 +147,7 @@ class Case() {
 }
 
 
-// FILE: LibCase1.kt
+// FILE: LibCase7.kt
 // TESTCASE NUMBER: 7, 8
 package libPackage
 import testPackCase8.Case
@@ -157,7 +157,7 @@ import testPackCase8.Case.E
 operator fun Case.E.<!EXTENSION_SHADOWED_BY_MEMBER!>plusAssign<!>(value: Int) {}
 operator fun Case.Inv.<!EXTENSION_SHADOWED_BY_MEMBER!>invoke<!>(i: Int) {}
 
-// FILE: TestCase3.kt
+// FILE: TestCase8.kt
 // TESTCASE NUMBER: 7, 8
 package testPackCase8
 import libPackage.plusAssign
