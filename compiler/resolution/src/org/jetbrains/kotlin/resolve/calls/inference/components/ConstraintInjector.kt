@@ -87,6 +87,7 @@ class ConstraintInjector(
                 }
             }
         }
+        println(1)
     }
 
     private fun updateAllowedTypeDepth(c: Context, initialType: KotlinTypeMarker) = with(c) {

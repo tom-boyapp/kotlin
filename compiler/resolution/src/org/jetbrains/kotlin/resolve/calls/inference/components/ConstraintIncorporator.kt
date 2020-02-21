@@ -5,6 +5,7 @@
 
 package org.jetbrains.kotlin.resolve.calls.inference.components
 
+import org.jetbrains.kotlin.descriptors.impl.AbstractTypeParameterDescriptor
 import org.jetbrains.kotlin.resolve.calls.components.CreateFreshVariablesSubstitutor.shouldBeFlexible
 import org.jetbrains.kotlin.resolve.calls.inference.model.*
 import org.jetbrains.kotlin.types.*
@@ -44,15 +45,23 @@ class ConstraintIncorporator(
             if (constraint.type.contains { it.typeConstructor() == typeVariable.freshTypeConstructor() }) return
         }
 
-        c.directWithVariable(typeVariable, constraint)
-        c.otherInsideMyConstraint(typeVariable, constraint)
-        c.insideOtherConstraint(typeVariable, constraint)
+        val cO = c.collectSubstitutedTypesO(typeVariable, constraint)
+        val c1 = c.collectSubstitutedTypesI(typeVariable, constraint)
+        val shouldBeApproximateTopLevelNotNull = c.hasDefNotNullInInvPosition(cO.values) || c.hasDefNotNullInInvPosition(c1.values)
+
+        val sO = c.approximateTopLevelDefNotNullTypesIfNeeded(cO)
+        val sI = c.approximateTopLevelDefNotNullTypesIfNeeded(c1)
+
+        c.directWithVariable(typeVariable, constraint, shouldBeApproximateTopLevelNotNull)
+        c.otherInsideMyConstraint(typeVariable, constraint, sO)
+        c.insideOtherConstraint(typeVariable, constraint, sI)
     }
 
     // A <:(=) \alpha <:(=) B => A <: B
     private fun Context.directWithVariable(
         typeVariable: TypeVariableMarker,
-        constraint: Constraint
+        constraint: Constraint,
+        shouldBeApproximateTopLevelNotNull: Boolean
     ) {
         val shouldBeTypeVariableFlexible =
             typeVariable is TypeVariableFromCallableDescriptor && typeVariable.originalTypeParameter.shouldBeFlexible()
@@ -61,7 +70,11 @@ class ConstraintIncorporator(
         if (constraint.kind != ConstraintKind.LOWER) {
             getConstraintsForVariable(typeVariable).forEach {
                 if (it.kind != ConstraintKind.UPPER) {
-                    addNewIncorporatedConstraint(it.type, constraint.type, shouldBeTypeVariableFlexible)
+                    addNewIncorporatedConstraint(
+                        if (shouldBeApproximateTopLevelNotNull) approximateTopLevelDefNotNullTypesIfNeeded(it.type) else it.type,
+                        if (shouldBeApproximateTopLevelNotNull) approximateTopLevelDefNotNullTypesIfNeeded(constraint.type) else constraint.type,
+                        shouldBeTypeVariableFlexible,
+                    )
                 }
             }
         }
@@ -70,36 +83,35 @@ class ConstraintIncorporator(
         if (constraint.kind != ConstraintKind.UPPER) {
             getConstraintsForVariable(typeVariable).forEach {
                 if (it.kind != ConstraintKind.LOWER) {
-                    addNewIncorporatedConstraint(constraint.type, it.type, shouldBeTypeVariableFlexible)
+                    addNewIncorporatedConstraint(
+                        if (shouldBeApproximateTopLevelNotNull) approximateTopLevelDefNotNullTypesIfNeeded(constraint.type) else constraint.type,
+                        if (shouldBeApproximateTopLevelNotNull) approximateTopLevelDefNotNullTypesIfNeeded(it.type) else it.type,
+                        shouldBeTypeVariableFlexible,
+                    )
                 }
             }
         }
     }
 
-    // \alpha <: Inv<\beta>, \beta <: Number => \alpha <: Inv<out Number>
-    private fun Context.otherInsideMyConstraint(typeVariable: TypeVariableMarker, constraint: Constraint) {
+    private fun Context.collectSubstitutedTypesO(
+        typeVariable: TypeVariableMarker,
+        constraint: Constraint,
+    ): Map<TypeVariableMarker, Map<Constraint, KotlinTypeMarker>> {
         val otherInMyConstraint = SmartSet.create<TypeVariableMarker>().apply {
             constraint.type.contains {
                 addIfNotNull(getTypeVariable(it.typeConstructor()))
                 false
             }
         }
-        val substitutedTypesByVariables = otherInMyConstraint.associateWith { otherTypeVariable ->
+        return otherInMyConstraint.associateWith { otherTypeVariable ->
             ArrayList(getConstraintsForVariable(otherTypeVariable)).associateWith { otherConstraint ->
                 getSubstitutedType(constraint, otherTypeVariable, otherConstraint)
             }
         }
-
-        for ((otherTypeVariable, substitutedTypes) in substitutedTypesByVariables) {
-            for ((otherConstraint, substitutedType) in substitutedTypes) {
-                generateNewConstraint(typeVariable, constraint, otherTypeVariable, otherConstraint, substitutedType)
-            }
-        }
     }
 
-    // \alpha <: Number, \beta <: Inv<\alpha> => \beta <: Inv<out Number>
-    private fun Context.insideOtherConstraint(typeVariable: TypeVariableMarker, constraint: Constraint) {
-        val substitutedTypesByVariables = allTypeVariablesWithConstraints.associate { typeVariableWithConstraint ->
+    private fun Context.collectSubstitutedTypesI(typeVariable: TypeVariableMarker, constraint: Constraint) =
+        allTypeVariablesWithConstraints.associate { typeVariableWithConstraint ->
             val constraintsWhichConstraintMyVariable = typeVariableWithConstraint.constraints.filter { otherConstraint ->
                 otherConstraint.type.contains { it.typeConstructor() == typeVariable.freshTypeConstructor() }
             }
@@ -108,6 +120,24 @@ class ConstraintIncorporator(
             typeVariableWithConstraint.typeVariable to substitutedTypes
         }
 
+    // \alpha <: Inv<\beta>, \beta <: Number => \alpha <: Inv<out Number>
+    private fun Context.otherInsideMyConstraint(
+        typeVariable: TypeVariableMarker,
+        constraint: Constraint,
+        substitutedTypesByVariables: Map<TypeVariableMarker, Map<Constraint, KotlinTypeMarker>>,
+    ) {
+        for ((otherTypeVariable, substitutedTypes) in substitutedTypesByVariables) {
+            for ((otherConstraint, substitutedType) in substitutedTypes) {
+                generateNewConstraint(typeVariable, constraint, otherTypeVariable, otherConstraint, substitutedType)
+            }
+        }
+    }
+
+    // \alpha <: Number, \beta <: Inv<\alpha> => \beta <: Inv<out Number>
+    private fun Context.insideOtherConstraint(
+        typeVariable: TypeVariableMarker, constraint: Constraint,
+        substitutedTypesByVariables: Map<TypeVariableMarker, Map<Constraint, KotlinTypeMarker>>
+    ) {
         for ((otherTypeVariable, substitutedTypes) in substitutedTypesByVariables) {
             for ((otherConstraint, substitutedType) in substitutedTypes) {
                 generateNewConstraint(otherTypeVariable, otherConstraint, typeVariable, constraint, substitutedType)
@@ -115,34 +145,72 @@ class ConstraintIncorporator(
         }
     }
 
-    private fun Context.getSubstitutedType(
-        baseConstraint: Constraint,
-        otherVariable: TypeVariableMarker,
-        otherConstraint: Constraint
-    ) = when (otherConstraint.kind) {
-        ConstraintKind.EQUALITY -> {
-            baseConstraint.type.substitute(this, otherVariable, otherConstraint.type)
-        }
-        ConstraintKind.UPPER -> {
-            val temporaryCapturedType = createCapturedType(
-                createTypeArgument(otherConstraint.type, TypeVariance.OUT),
-                listOf(otherConstraint.type),
-                null,
-                CaptureStatus.FOR_INCORPORATION,
-            )
-            baseConstraint.type.substitute(this, otherVariable, temporaryCapturedType)
-        }
-        ConstraintKind.LOWER -> {
-            val temporaryCapturedType = createCapturedType(
-                createTypeArgument(otherConstraint.type, TypeVariance.IN),
-                emptyList(),
-                otherConstraint.type,
-                CaptureStatus.FOR_INCORPORATION,
-            )
+    private fun Context.approximateTopLevelDefNotNullTypesIfNeeded(type: KotlinTypeMarker) =
+        if ((type as? DelegatingSimpleType)?.constructor is AbstractTypeConstructor && type is DefinitelyNotNullType) {
+            type.original.withNullability(false)
+        } else type
 
-            baseConstraint.type.substitute(this, otherVariable, temporaryCapturedType)
+    private fun Context.approximateTopLevelDefNotNullTypesIfNeeded(
+        substitutedTypesByVariables: Map<TypeVariableMarker, Map<Constraint, KotlinTypeMarker>>
+    ): Map<TypeVariableMarker, Map<Constraint, KotlinTypeMarker>> {
+        if (!hasTopLevelDefNotNull(substitutedTypesByVariables.values) && !hasDefNotNullInInvPosition(substitutedTypesByVariables.values)) {
+            return substitutedTypesByVariables
         }
+
+        return substitutedTypesByVariables.map { (typeVariable, constraints) ->
+            typeVariable to constraints.map { (constraint, type) ->
+                constraint to if (type is DefinitelyNotNullType) {
+                    type.original.withNullability(false)
+                } else type
+            }.toMap()
+        }.toMap()
     }
+
+    private fun Context.hasTopLevelDefNotNull(substitutedTypesByVariables: Collection<Map<Constraint, KotlinTypeMarker>>) =
+        substitutedTypesByVariables.any { constraints ->
+            constraints.values.any { type -> type.isDefinitelyNotNullType() }
+        }
+
+    private fun Context.hasDefNotNullInInvPosition(substitutedTypesByVariables: Collection<Map<Constraint, KotlinTypeMarker>>) =
+        substitutedTypesByVariables.any { constraints ->
+            constraints.values.any { type -> hasDefNotNullInInvPosition(type) }
+        }
+
+    private fun Context.hasDefNotNullInInvPosition(type: KotlinTypeMarker): Boolean {
+        for (i in 0 until type.argumentsCount()) {
+            val typeArgument = type.getArgument(i)
+
+            if (typeArgument.getVariance() == TypeVariance.INV && typeArgument.getType().isDefinitelyNotNullType()) return true
+            if (!typeArgument.isStarProjection() && hasDefNotNullInInvPosition(typeArgument.getType())) return true
+        }
+        return false
+    }
+
+    private fun Context.getSubstitutedType(baseConstraint: Constraint, otherVariable: TypeVariableMarker, otherConstraint: Constraint) =
+        when (otherConstraint.kind) {
+            ConstraintKind.EQUALITY -> {
+                baseConstraint.type.substitute(this, otherVariable, otherConstraint.type)
+            }
+            ConstraintKind.UPPER -> {
+                val temporaryCapturedType = createCapturedType(
+                    createTypeArgument(otherConstraint.type, TypeVariance.OUT),
+                    listOf(otherConstraint.type),
+                    null,
+                    CaptureStatus.FOR_INCORPORATION,
+                )
+                baseConstraint.type.substitute(this, otherVariable, temporaryCapturedType)
+            }
+            ConstraintKind.LOWER -> {
+                val temporaryCapturedType = createCapturedType(
+                    createTypeArgument(otherConstraint.type, TypeVariance.IN),
+                    emptyList(),
+                    otherConstraint.type,
+                    CaptureStatus.FOR_INCORPORATION,
+                )
+
+                baseConstraint.type.substitute(this, otherVariable, temporaryCapturedType)
+            }
+        }
 
     private fun Context.generateNewConstraint(
         targetVariable: TypeVariableMarker,
