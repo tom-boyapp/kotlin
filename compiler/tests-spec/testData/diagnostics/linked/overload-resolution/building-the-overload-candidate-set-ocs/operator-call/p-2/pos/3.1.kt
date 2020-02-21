@@ -195,3 +195,46 @@ class Case() {
         <!DEBUG_INFO_AS_CALL("fqName: testPackCase8.Case.E.plusAssign; typeCall: operator function")!>e+=1<!>
     }
 }
+
+
+// FILE: LibCase9.kt
+// TESTCASE NUMBER: 9, 10
+package libPackage
+import testPackCase10.Iterable
+import testPackCase10.Inv
+
+operator fun Iterable.<!EXTENSION_SHADOWED_BY_MEMBER!>iterator<!>() : CharIterator = TODO()
+operator fun Inv.<!EXTENSION_SHADOWED_BY_MEMBER!>invoke<!>() {}
+
+// FILE: TestCase10.kt
+// TESTCASE NUMBER: 9, 10
+package testPackCase10
+import libPackage.iterator
+import libPackage.invoke
+
+class Iterable(iterator: Inv) {
+    operator fun iterator() : CharIterator = TODO()
+}
+
+class Inv(val c: Char) {
+    operator fun invoke(): CharIterator = TODO()
+}
+
+operator fun Iterable.<!EXTENSION_SHADOWED_BY_MEMBER!>iterator<!>() : CharIterator = TODO()
+
+fun case(){
+    operator fun Iterable.<!EXTENSION_SHADOWED_BY_MEMBER!>iterator<!>() : CharIterator = TODO()
+    val iterable: Iterable = Iterable(Inv('c'))
+
+    fun foo(){
+        <!DEBUG_INFO_AS_CALL("fqName: testPackCase10.Iterable.iterator; typeCall: operator function")!>iterable.iterator()<!>
+        for (i in iterable) {
+            println(i)
+        }
+    }
+    <!DEBUG_INFO_AS_CALL("fqName: testPackCase10.Iterable.iterator; typeCall: operator function")!>iterable.iterator()<!>
+    for (i in iterable) {
+        println(i)
+    }
+}
+

@@ -11,7 +11,7 @@
         },
         {
           "specVersion": "0.1-268",
-          "casesNumber": 6,
+          "casesNumber": 8,
           "description": "properties available through the invoke convention are non-eligible for operator calls",
           "unexpectedBehaviour": true
         }
@@ -33,19 +33,19 @@
       "3": [
         {
           "specVersion": "0.1-268",
-          "casesNumber": 2,
+          "casesNumber": 4,
           "description": "Extension callables declared in the package scope",
           "unexpectedBehaviour": false
         },
         {
           "specVersion": "0.1-268",
-          "casesNumber": 2,
+          "casesNumber": 3,
           "description": "Star-imported extension callables",
           "unexpectedBehaviour": false
         },
         {
           "specVersion": "0.1-268",
-          "casesNumber": 4,
+          "casesNumber": 10,
           "description": "Non-extension member callables",
           "unexpectedBehaviour": false
         },
@@ -63,7 +63,7 @@
         },
         {
           "specVersion": "0.1-268",
-          "casesNumber": 2,
+          "casesNumber": 4,
           "description": "Explicitly imported extension callables",
           "unexpectedBehaviour": false
         }
