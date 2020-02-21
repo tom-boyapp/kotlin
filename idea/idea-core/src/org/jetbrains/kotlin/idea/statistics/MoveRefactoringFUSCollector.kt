@@ -13,26 +13,30 @@ object MoveRefactoringFUSCollector {
     fun log(
         timeStarted: Long,
         timeFinished: Long,
-        numberOfFiles: Int,
+        numberOfEntities: Int,
+        entity: MovedEntity,
         destination: MoveRefactoringDestination,
-        isDefault: Boolean
+        isDefault: Boolean,
+        isSucceeded: Boolean
     ) {
 
         val data = mapOf(
             "lagging" to (timeFinished - timeStarted).toString(),
+            "entity" to entity.toString(),
             "destination" to destination.toString(),
-            "number_of_entities" to numberOfFiles.toString(),
-            "are_settings_changed" to isDefault.toString()
+            "number_of_entities" to numberOfEntities.toString(),
+            "are_settings_changed" to isDefault.toString(),
+            "succeeded" to isSucceeded.toString()
         )
 
         KotlinFUSLogger.log(FUSEventGroups.Refactoring, "Move", data)
     }
 
     enum class MoveRefactoringDestination {
-        PACKAGE, FILE, DIRECTORY
+        PACKAGE, FILE, DECLARATION
     }
 
     enum class MovedEntity {
-        FUNCTION, CLASS, PACKAGE, MPPFUNCTION, MPPCLASS, MIXED
+        FUNCTIONS, CLASSES, MIXED, MPPCLASSES, MPPFUNCTIONS, MPPMIXED, PACKAGE, FILES
     }
 }
