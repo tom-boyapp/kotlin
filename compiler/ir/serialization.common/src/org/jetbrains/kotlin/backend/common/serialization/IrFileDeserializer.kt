@@ -215,7 +215,7 @@ abstract class IrFileDeserializer(val logger: LoggingContext, val builtIns: IrBu
         val mask = proto.flags
 
         val accessorSignature = with(propertySignature) {
-            IdSignature.PublicSignature(packageFqn, classFqn.child(Name.special(name)), hash, mask)
+            IdSignature.PublicSignature(packageFqn, declarationFqn.child(Name.special(name)), hash, mask)
         }
 
         return IdSignature.AccessorSignature(propertySignature, accessorSignature)
