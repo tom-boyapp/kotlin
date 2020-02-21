@@ -83,6 +83,7 @@ class ConstraintIncorporator(
         if (constraint.kind != ConstraintKind.UPPER) {
             getConstraintsForVariable(typeVariable).forEach {
                 if (it.kind != ConstraintKind.LOWER) {
+                    // check that type variable was in invariant position
                     addNewIncorporatedConstraint(
                         if (shouldBeApproximateTopLevelNotNull) approximateTopLevelDefNotNullTypesIfNeeded(constraint.type) else constraint.type,
                         if (shouldBeApproximateTopLevelNotNull) approximateTopLevelDefNotNullTypesIfNeeded(it.type) else it.type,
