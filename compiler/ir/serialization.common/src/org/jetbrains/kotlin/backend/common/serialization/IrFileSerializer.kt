@@ -184,7 +184,7 @@ open class IrFileSerializer(
     private fun serializePublicSignature(signature: IdSignature.PublicSignature): ProtoPublicIdSignature {
         val proto = ProtoPublicIdSignature.newBuilder()
         proto.addAllPackageFqName(serializeFqName(signature.packageFqn))
-        proto.addAllClassFqName(serializeFqName(signature.declarationFqn))
+        proto.addAllDeclarationFqName(serializeFqName(signature.declarationFqn))
 
         signature.id?.let { proto.memberUniqId = it }
         if (signature.mask != 0L) {
