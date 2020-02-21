@@ -146,7 +146,7 @@ fun illegalConstantBlock(): String {
     return <!CONSTANT_EXPECTED_TYPE_MISMATCH!>1<!>
 }
 fun illegalIfBody(): Int =
-        <!NI;TYPE_MISMATCH, NI;TYPE_MISMATCH, NI;TYPE_MISMATCH!>if (1 < 2) <!OI;CONSTANT_EXPECTED_TYPE_MISMATCH!>'a'<!> else { <!OI;CONSTANT_EXPECTED_TYPE_MISMATCH!>1.0<!> }<!>
+        <!NI;TYPE_MISMATCH, NI;TYPE_MISMATCH!>if (1 < 2) <!OI;CONSTANT_EXPECTED_TYPE_MISMATCH!>'a'<!> else { <!OI;CONSTANT_EXPECTED_TYPE_MISMATCH!>1.0<!> }<!>
 fun illegalIfBlock(): Boolean {
     if (1 < 2)
         return false

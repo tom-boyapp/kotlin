@@ -20,6 +20,7 @@ import org.jetbrains.kotlin.resolve.calls.NewCommonSuperTypeCalculator
 import org.jetbrains.kotlin.resolve.calls.inference.components.TypeVariableDirectionCalculator.ResolveDirection
 import org.jetbrains.kotlin.resolve.calls.inference.model.*
 import org.jetbrains.kotlin.types.AbstractTypeApproximator
+import org.jetbrains.kotlin.types.AbstractTypeChecker
 import org.jetbrains.kotlin.types.IntersectionTypeConstructor
 import org.jetbrains.kotlin.types.TypeApproximatorConfiguration
 import org.jetbrains.kotlin.types.model.*
@@ -73,9 +74,19 @@ class ResultTypeResolver(
     ): KotlinTypeMarker? {
         if (firstCandidate == null || secondCandidate == null) return firstCandidate ?: secondCandidate
 
-        if (isSuitableType(firstCandidate, variableWithConstraints, discriminateIntersectionType)) return firstCandidate
+        if (discriminateIntersectionType && firstCandidate.typeConstructor() is IntersectionTypeConstructor) {
+            val approximated = typeApproximator.approximateToSuperType(firstCandidate, TypeApproximatorConfiguration.PublicDeclaration)
+                ?: firstCandidate
+            return if (AbstractTypeChecker.isSubtypeOf(this, approximated, secondCandidate)) {
+                firstCandidate
+            } else {
+                resultType(secondCandidate, firstCandidate, variableWithConstraints, false)
+            }
+        }
 
-        return if (isSuitableType(secondCandidate, variableWithConstraints, discriminateIntersectionType)) {
+        if (isSuitableType(firstCandidate, variableWithConstraints)) return firstCandidate
+
+        return if (isSuitableType(secondCandidate, variableWithConstraints)) {
             secondCandidate
         } else {
             firstCandidate
@@ -84,8 +95,7 @@ class ResultTypeResolver(
 
     private fun Context.isSuitableType(
         resultType: KotlinTypeMarker,
-        variableWithConstraints: VariableWithConstraints,
-        discriminateIntersectionType: Boolean
+        variableWithConstraints: VariableWithConstraints
     ): Boolean {
         val filteredConstraints = variableWithConstraints.constraints.filter { isProperType(it.type) }
         for (constraint in filteredConstraints) {
@@ -95,8 +105,6 @@ class ResultTypeResolver(
             if (resultType.isNullableType() && checkSingleLowerNullabilityConstraint(filteredConstraints)) return false
             if (isReified(variableWithConstraints.typeVariable)) return false
         }
-
-        if (discriminateIntersectionType && resultType.typeConstructor() is IntersectionTypeConstructor) return false
 
         return true
     }
